@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JourNote — daily journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amatic+SC:wght@400;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EFEDE3;
+    --surface:#FFFFFF;
+    --ink:#20241F;
+    --ink-soft:#5A6055;
+    --sage:#6E8F72;
+    --sage-bg:#E4EBE2;
+    --amber:#C79A3D;
+    --amber-bg:#F3EAD3;
+    --clay:#B24E36;
+    --clay-bg:#F2DFD6;
+    --plum:#0E6B66;
+    --plum-soft:#DFEFEC;
+    --line:#DAD5C6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+  }
+  .app{
+    max-width:880px;
+    margin:0 auto;
+    padding:40px 20px 80px;
+  }
+  header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:8px;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  .brand{
+    font-family:'Amatic SC', sans-serif;
+    font-size:52px;
+    font-weight:700;
+    letter-spacing:0.01em;
+    line-height:1;
+  }
+  .brand span{color:var(--plum);}
+  .tagline{
+    font-size:13px;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+  .nav{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .nav button{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:8px;
+    width:32px;
+    height:32px;
+    cursor:pointer;
+    font-size:15px;
+    color:var(--ink);
+  }
+  .nav button:hover{border-color:var(--plum); color:var(--plum);}
+  .month-label{font-size:15px; font-weight:500; min-width:130px; text-align:center;}
+
+  .legend{
+    display:flex;
+    gap:16px;
+    margin:22px 0 18px;
+    font-size:12px;
+    color:var(--ink-soft);
+    flex-wrap:wrap;
+  }
+  .legend .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px;}
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:6px;
+  }
+  .dow{
+    text-align:center;
+    font-size:11px;
+    letter-spacing:0.06em;
+    color:var(--ink-soft);
+    font-family:'IBM Plex Mono', monospace;
+    padding-bottom:4px;
+  }
+  .day{
+    aspect-ratio:1;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    position:relative;
+    transition:transform .1s ease, box-shadow .1s ease;
+  }
+  .day:hover{transform:translateY(-1px); box-shadow:0 3px 10px rgba(32,36,31,0.08);}
+  .day.empty{background:transparent; border:none; cursor:default;}
+  .day.empty:hover{transform:none; box-shadow:none;}
+  .day.today .num{color:var(--plum); font-weight:600;}
+  .ring{
+    position:absolute;
+    inset:3px;
+    border-radius:8px;
+    border:2.5px solid transparent;
+    pointer-events:none;
+  }
+  .num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    z-index:1;
+  }
+  .photo-mark{
+    position:absolute;
+    bottom:5px;
+    right:5px;
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:var(--plum);
+    z-index:1;
+  }
+  .mood-mark{
+    font-size:11px;
+    margin-top:2px;
+    z-index:1;
+  }
+
+  /* Drawer */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(32,36,31,0.35);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:10;
+  }
+  .overlay.open{display:flex;}
+  .drawer{
+    background:var(--paper);
+    width:100%;
+    max-width:520px;
+    max-height:88vh;
+    overflow-y:auto;
+    border-radius:18px 18px 0 0;
+    padding:26px 26px 32px;
+    box-shadow:0 -8px 30px rgba(0,0,0,0.2);
+  }
+  @media(min-width:600px){
+    .overlay{align-items:center;}
+    .drawer{border-radius:16px; max-height:82vh;}
+  }
+  .drawer-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    margin-bottom:18px;
+  }
+  .drawer-date{
+    font-family:'Fraunces', serif;
+    font-size:22px;
+    font-weight:600;
+  }
+  .close-btn{
+    background:none; border:none; font-size:20px; cursor:pointer; color:var(--ink-soft);
+    line-height:1; padding:4px;
+  }
+  .field{margin-bottom:20px;}
+  .field label{
+    display:block;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--ink-soft);
+    margin-bottom:8px;
+    font-weight:500;
+  }
+  textarea, input[type=text]{
+    width:100%;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:10px 12px;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:14px;
+    color:var(--ink);
+    resize:vertical;
+  }
+  textarea:focus, input:focus{outline:2px solid var(--plum); outline-offset:1px;}
+  textarea{min-height:44px;}
+
+  .mood-row{display:flex; gap:8px;}
+  .mood-label{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin-top:10px;
+    margin-bottom:4px;
+  }
+  .mood-row.compact{gap:6px; margin-top:0;}
+  .mood-row.compact .mood-btn{padding:6px 2px; font-size:15px; border-radius:8px;}
+  .mood-btn{
+    flex:1;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:10px 4px;
+    font-size:19px;
+    cursor:pointer;
+  }
+  .mood-btn.active{border-color:var(--plum); background:var(--plum-soft);}
+
+  .skin-row{display:flex; gap:8px;}
+  .skin-btn{
+    flex:1;
+    height:38px;
+    border-radius:10px;
+    border:2px solid transparent;
+    cursor:pointer;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--ink);
+  }
+  .skin-btn.active{border-color:var(--ink);}
+
+  .photo-area{
+    border:1.5px dashed var(--line);
+    border-radius:10px;
+    padding:16px;
+    text-align:center;
+    background:var(--surface);
+  }
+  .photo-area img{
+    max-width:100%;
+    max-height:200px;
+    border-radius:8px;
+    display:block;
+    margin:0 auto 10px;
+  }
+  .photo-btn-row{display:flex; gap:8px; justify-content:center; flex-wrap:wrap;}
+  .ghost-btn{
+    background:none;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:7px 12px;
+    font-size:12px;
+    cursor:pointer;
+    color:var(--ink);
+  }
+  .ghost-btn:hover{border-color:var(--plum); color:var(--plum);}
+  input[type=file]{display:none;}
+
+  .actions{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:26px;
+    gap:10px;
+  }
+  .save-btn{
+    background:var(--plum);
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    padding:11px 20px;
+    font-size:14px;
+    font-weight:500;
+    cursor:pointer;
+    flex:1;
+  }
+  .save-btn:hover{opacity:0.9;}
+  .save-btn:disabled{opacity:0.5; cursor:default;}
+  .delete-btn{
+    background:none;
+    border:none;
+    color:var(--clay);
+    font-size:13px;
+    cursor:pointer;
+    padding:8px;
+  }
+  .status{
+    font-size:12px;
+    color:var(--ink-soft);
+    text-align:center;
+    margin-top:10px;
+    min-height:16px;
+  }
+  .loading-note{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:13px;
+    padding:30px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div>
+      <div class="brand">Jour<span>Note</span></div>
+      <div class="tagline">food, mood, and skin — logged day by day</div>
+    </div>
+    <div class="nav">
+      <button id="prevBtn" aria-label="Previous month">‹</button>
+      <div class="month-label" id="monthLabel"></div>
+      <button id="nextBtn" aria-label="Next month">›</button>
+    </div>
+  </header>
+
+  <div class="legend">
+    <span><span class="dot" style="background:var(--sage)"></span>clear</span>
+    <span><span class="dot" style="background:var(--amber)"></span>mild</span>
+    <span><span class="dot" style="background:var(--clay)"></span>flare-up</span>
+    <span><span class="dot" style="background:var(--plum)"></span>photo attached</span>
+  </div>
+
+  <div class="grid" id="dowRow"></div>
+  <div class="grid" id="calendarGrid" style="margin-top:6px;">
+    <div class="loading-note">Loading your journal…</div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="drawer">
+    <div class="drawer-header">
+      <div class="drawer-date" id="drawerDate">—</div>
+      <button class="close-btn" id="closeBtn" aria-label="Close">✕</button>
+    </div>
+
+    <div class="field">
+      <label>Breakfast</label>
+      <textarea id="breakfastInput" placeholder="What did you have?"></textarea>
+      <div class="mood-label">how do you feel after the meal?</div>
+      <div class="mood-row compact" id="breakfastMoodRow">
+        <button class="mood-btn" data-mood="bloated" title="bloating" aria-label="bloating">🎈</button>
+        <button class="mood-btn" data-mood="nauseous" title="nauseous" aria-label="nauseous">🤢</button>
+        <button class="mood-btn" data-mood="fine" title="normal, all good" aria-label="normal, all good">👍</button>
+        <button class="mood-btn" data-mood="itchy" title="itchy" aria-label="itchy">💥</button>
+        <button class="mood-btn" data-mood="headache" title="headache" aria-label="headache">🧠</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Lunch</label>
+      <textarea id="lunchInput" placeholder="What did you have?"></textarea>
+      <div class="mood-label">how do you feel after the meal?</div>
+      <div class="mood-row compact" id="lunchMoodRow">
+        <button class="mood-btn" data-mood="bloated" title="bloating" aria-label="bloating">🎈</button>
+        <button class="mood-btn" data-mood="nauseous" title="nauseous" aria-label="nauseous">🤢</button>
+        <button class="mood-btn" data-mood="fine" title="normal, all good" aria-label="normal, all good">👍</button>
+        <button class="mood-btn" data-mood="itchy" title="itchy" aria-label="itchy">💥</button>
+        <button class="mood-btn" data-mood="headache" title="headache" aria-label="headache">🧠</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Dinner</label>
+      <textarea id="dinnerInput" placeholder="What did you have?"></textarea>
+      <div class="mood-label">how do you feel after the meal?</div>
+      <div class="mood-row compact" id="dinnerMoodRow">
+        <button class="mood-btn" data-mood="bloated" title="bloating" aria-label="bloating">🎈</button>
+        <button class="mood-btn" data-mood="nauseous" title="nauseous" aria-label="nauseous">🤢</button>
+        <button class="mood-btn" data-mood="fine" title="normal, all good" aria-label="normal, all good">👍</button>
+        <button class="mood-btn" data-mood="itchy" title="itchy" aria-label="itchy">💥</button>
+        <button class="mood-btn" data-mood="headache" title="headache" aria-label="headache">🧠</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Skin today</label>
+      <div class="skin-row" id="skinRow">
+        <button class="skin-btn" data-skin="1" style="background:var(--sage-bg)">clear</button>
+        <button class="skin-btn" data-skin="2" style="background:var(--amber-bg)">mild</button>
+        <button class="skin-btn" data-skin="3" style="background:var(--clay-bg)">flare-up</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Photo</label>
+      <div class="photo-area" id="photoArea">
+        <div id="photoPreviewWrap"></div>
+        <div class="photo-btn-row">
+          <button class="ghost-btn" id="addPhotoBtn">Add photo</button>
+          <button class="ghost-btn" id="removePhotoBtn" style="display:none;">Remove photo</button>
+        </div>
+        <input type="file" id="photoInput" accept="image/*">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="notesInput" placeholder="Anything else worth remembering…"></textarea>
+    </div>
+
+    <div class="actions">
+      <button class="delete-btn" id="deleteBtn">Clear this day</button>
+      <button class="save-btn" id="saveBtn">Save entry</button>
+    </div>
+    <div class="status" id="statusMsg"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // On-device storage: works fully standalone in Safari (or any browser),
+  // no connection back to Claude required. Data stays on this device/browser only.
+  const storage = {
+    async get(key){
+      const v = localStorage.getItem(key);
+      if(v === null) throw new Error('not found');
+      return {key, value: v};
+    },
+    async set(key, value){
+      localStorage.setItem(key, value);
+      return {key, value};
+    },
+    async delete(key){
+      localStorage.removeItem(key);
+      return {key, deleted:true};
+    }
+  };
+
+  const dowNames = ['S','M','T','W','T','F','S'];
+  const dowRow = document.getElementById('dowRow');
+  dowNames.forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'dow';
+    el.textContent = d;
+    dowRow.appendChild(el);
+  });
+
+  let current = new Date();
+  current.setDate(1);
+  let monthCache = {}; // "YYYY-MM" -> {day: entryObj}
+  let activeDateKey = null;
+  let activeMonthKey = null;
+  let pendingPhoto = null; // base64 string or null; undefined means "no change"
+  let photoRemoved = false;
+
+  const grid = document.getElementById('calendarGrid');
+  const monthLabel = document.getElementById('monthLabel');
+  const overlay = document.getElementById('overlay');
+  const statusMsg = document.getElementById('statusMsg');
+
+  function pad(n){ return n < 10 ? '0'+n : ''+n; }
+  function monthKey(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1); }
+  function dateKey(d, day){ return monthKey(d) + '-' + pad(day); }
+
+  function skinColor(level){
+    if(level === 1) return getComputedStyle(document.documentElement).getPropertyValue('--sage');
+    if(level === 2) return getComputedStyle(document.documentElement).getPropertyValue('--amber');
+    if(level === 3) return getComputedStyle(document.documentElement).getPropertyValue('--clay');
+    return 'transparent';
+  }
+
+  const moodEmoji = {bloated:'🎈', nauseous:'🤢', fine:'👍', itchy:'💥', headache:'🧠'};
+
+  async function loadMonth(d){
+    const key = 'month:' + monthKey(d);
+    grid.innerHTML = '<div class="loading-note">Loading your journal…</div>';
+    try{
+      const result = await storage.get(key);
+      monthCache[monthKey(d)] = result && result.value ? JSON.parse(result.value) : {};
+    }catch(e){
+      monthCache[monthKey(d)] = {};
+    }
+    renderMonth(d);
+  }
+
+  function renderMonth(d){
+    monthLabel.textContent = d.toLocaleString('default', {month:'long', year:'numeric'});
+    grid.innerHTML = '';
+    const year = d.getFullYear(), month = d.getMonth();
+    const firstDow = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    const entries = monthCache[monthKey(d)] || {};
+    const todayStr = dateKey(new Date(), new Date().getDate());
+
+    for(let i=0; i<firstDow; i++){
+      const empty = document.createElement('div');
+      empty.className = 'day empty';
+      grid.appendChild(empty);
+    }
+    for(let day=1; day<=daysInMonth; day++){
+      const cell = document.createElement('div');
+      cell.className = 'day';
+      const dKey = dateKey(d, day);
+      if(dKey === todayStr) cell.classList.add('today');
+
+      const entry = entries[pad(day)];
+      const ring = document.createElement('div');
+      ring.className = 'ring';
+      if(entry && entry.skin){
+        ring.style.borderColor = skinColor(entry.skin);
+      }
+      cell.appendChild(ring);
+
+      const num = document.createElement('div');
+      num.className = 'num';
+      num.textContent = day;
+      cell.appendChild(num);
+
+      const repMood = entry && (entry.dinnerMood || entry.lunchMood || entry.breakfastMood);
+      if(repMood){
+        const m = document.createElement('div');
+        m.className = 'mood-mark';
+        m.textContent = moodEmoji[repMood] || '';
+        cell.appendChild(m);
+      }
+      if(entry && entry.hasPhoto){
+        const pm = document.createElement('div');
+        pm.className = 'photo-mark';
+        cell.appendChild(pm);
+      }
+
+      cell.addEventListener('click', () => openDay(d, day));
+      grid.appendChild(cell);
+    }
+  }
+
+  function resetDrawerFields(){
+    document.getElementById('breakfastInput').value = '';
+    document.getElementById('lunchInput').value = '';
+    document.getElementById('dinnerInput').value = '';
+    document.getElementById('notesInput').value = '';
+    document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.skin-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('photoPreviewWrap').innerHTML = '';
+    document.getElementById('removePhotoBtn').style.display = 'none';
+    statusMsg.textContent = '';
+    pendingPhoto = undefined;
+    photoRemoved = false;
+  }
+
+  async function openDay(d, day){
+    resetDrawerFields();
+    activeMonthKey = monthKey(d);
+    activeDateKey = pad(day);
+    const dateObj = new Date(d.getFullYear(), d.getMonth(), day);
+    document.getElementById('drawerDate').textContent =
+      dateObj.toLocaleDateString('default', {weekday:'long', month:'long', day:'numeric'});
+
+    const entry = (monthCache[activeMonthKey] || {})[activeDateKey];
+    if(entry){
+      document.getElementById('breakfastInput').value = entry.breakfast || entry.food || '';
+      document.getElementById('lunchInput').value = entry.lunch || '';
+      document.getElementById('dinnerInput').value = entry.dinner || '';
+      document.getElementById('notesInput').value = entry.notes || '';
+      if(entry.breakfastMood){
+        const btn = document.querySelector('#breakfastMoodRow .mood-btn[data-mood="'+entry.breakfastMood+'"]');
+        if(btn) btn.classList.add('active');
+      }
+      if(entry.lunchMood){
+        const btn = document.querySelector('#lunchMoodRow .mood-btn[data-mood="'+entry.lunchMood+'"]');
+        if(btn) btn.classList.add('active');
+      }
+      if(entry.dinnerMood){
+        const btn = document.querySelector('#dinnerMoodRow .mood-btn[data-mood="'+entry.dinnerMood+'"]');
+        if(btn) btn.classList.add('active');
+      }
+      if(entry.skin){
+        const btn = document.querySelector('.skin-btn[data-skin="'+entry.skin+'"]');
+        if(btn) btn.classList.add('active');
+      }
+      if(entry.hasPhoto){
+        showPhotoLoading();
+        try{
+          const photoRes = await storage.get('photo:' + activeMonthKey + '-' + activeDateKey);
+          if(photoRes && photoRes.value){
+            showPhotoPreview(photoRes.value);
+          }else{
+            clearPhotoPreview();
+          }
+        }catch(e){
+          clearPhotoPreview();
+        }
+      }
+    }
+    overlay.classList.add('open');
+  }
+
+  function closeDay(){
+    overlay.classList.remove('open');
+    activeDateKey = null;
+    activeMonthKey = null;
+  }
+
+  function showPhotoLoading(){
+    document.getElementById('photoPreviewWrap').innerHTML =
+      '<div style="font-size:12px;color:var(--ink-soft);padding:10px 0;">Loading photo…</div>';
+  }
+  function showPhotoPreview(base64){
+    document.getElementById('photoPreviewWrap').innerHTML =
+      '<img src="' + base64 + '" alt="Logged photo">';
+    document.getElementById('removePhotoBtn').style.display = 'inline-block';
+  }
+  function clearPhotoPreview(){
+    document.getElementById('photoPreviewWrap').innerHTML = '';
+    document.getElementById('removePhotoBtn').style.display = 'none';
+  }
+
+  document.querySelectorAll('.mood-row').forEach(row => {
+    row.querySelectorAll('.mood-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const wasActive = btn.classList.contains('active');
+        row.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+        if(!wasActive) btn.classList.add('active');
+      });
+    });
+  });
+  document.querySelectorAll('.skin-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wasActive = btn.classList.contains('active');
+      document.querySelectorAll('.skin-btn').forEach(b => b.classList.remove('active'));
+      if(!wasActive) btn.classList.add('active');
+    });
+  });
+
+  document.getElementById('addPhotoBtn').addEventListener('click', () => {
+    document.getElementById('photoInput').click();
+  });
+  document.getElementById('removePhotoBtn').addEventListener('click', () => {
+    clearPhotoPreview();
+    pendingPhoto = null;
+    photoRemoved = true;
+  });
+
+  document.getElementById('photoInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      const img = new Image();
+      img.onload = function(){
+        const maxW = 640;
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.6);
+        pendingPhoto = compressed;
+        photoRemoved = false;
+        showPhotoPreview(compressed);
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  document.getElementById('closeBtn').addEventListener('click', closeDay);
+  overlay.addEventListener('click', (e) => { if(e.target === overlay) closeDay(); });
+
+  async function saveEntry(){
+    if(!activeMonthKey || !activeDateKey) return;
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = true;
+    statusMsg.textContent = 'Saving…';
+
+    const breakfast = document.getElementById('breakfastInput').value.trim();
+    const lunch = document.getElementById('lunchInput').value.trim();
+    const dinner = document.getElementById('dinnerInput').value.trim();
+    const notes = document.getElementById('notesInput').value.trim();
+    const breakfastMoodBtn = document.querySelector('#breakfastMoodRow .mood-btn.active');
+    const lunchMoodBtn = document.querySelector('#lunchMoodRow .mood-btn.active');
+    const dinnerMoodBtn = document.querySelector('#dinnerMoodRow .mood-btn.active');
+    const skinBtn = document.querySelector('.skin-btn.active');
+    const breakfastMood = breakfastMoodBtn ? breakfastMoodBtn.dataset.mood : null;
+    const lunchMood = lunchMoodBtn ? lunchMoodBtn.dataset.mood : null;
+    const dinnerMood = dinnerMoodBtn ? dinnerMoodBtn.dataset.mood : null;
+    const skin = skinBtn ? parseInt(skinBtn.dataset.skin, 10) : null;
+
+    const photoKey = 'photo:' + activeMonthKey + '-' + activeDateKey;
+    let hasPhoto = !!(monthCache[activeMonthKey] &&
+      monthCache[activeMonthKey][activeDateKey] &&
+      monthCache[activeMonthKey][activeDateKey].hasPhoto);
+
+    try{
+      if(pendingPhoto){
+        await storage.set(photoKey, pendingPhoto);
+        hasPhoto = true;
+      }else if(photoRemoved){
+        try{ await storage.delete(photoKey); }catch(e){}
+        hasPhoto = false;
+      }
+
+      const isEmpty = !breakfast && !lunch && !dinner && !notes &&
+        !breakfastMood && !lunchMood && !dinnerMood && !skin && !hasPhoto;
+      if(!monthCache[activeMonthKey]) monthCache[activeMonthKey] = {};
+
+      if(isEmpty){
+        delete monthCache[activeMonthKey][activeDateKey];
+      }else{
+        monthCache[activeMonthKey][activeDateKey] = {
+          breakfast, lunch, dinner, notes,
+          breakfastMood, lunchMood, dinnerMood, skin, hasPhoto
+        };
+      }
+
+      await storage.set('month:' + activeMonthKey, JSON.stringify(monthCache[activeMonthKey]));
+      statusMsg.textContent = 'Saved.';
+      renderMonth(current);
+      setTimeout(closeDay, 350);
+    }catch(e){
+      statusMsg.textContent = "Couldn't save — try again.";
+    }finally{
+      saveBtn.disabled = false;
+    }
+  }
+
+  async function deleteEntry(){
+    if(!activeMonthKey || !activeDateKey) return;
+    statusMsg.textContent = 'Clearing…';
+    try{
+      if(monthCache[activeMonthKey]) delete monthCache[activeMonthKey][activeDateKey];
+      await storage.set('month:' + activeMonthKey, JSON.stringify(monthCache[activeMonthKey] || {}));
+      try{ await storage.delete('photo:' + activeMonthKey + '-' + activeDateKey); }catch(e){}
+      renderMonth(current);
+      closeDay();
+    }catch(e){
+      statusMsg.textContent = "Couldn't clear — try again.";
+    }
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', saveEntry);
+  document.getElementById('deleteBtn').addEventListener('click', deleteEntry);
+
+  document.getElementById('prevBtn').addEventListener('click', () => {
+    current.setMonth(current.getMonth() - 1);
+    loadMonth(current);
+  });
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    current.setMonth(current.getMonth() + 1);
+    loadMonth(current);
+  });
+
+  loadMonth(current);
+})();
+</script>
+
+</body>
+</html>
